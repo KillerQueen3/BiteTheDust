@@ -259,7 +259,7 @@ class UmaCalculator {
      */
     var totalHpConsume = 0.0
 
-    var resultMap = mutableMapOf<String, StageResult>()
+    var resultMap = mutableMapOf<String, PhaseResult>()
 
     /**
      * 计算加速过程
@@ -268,8 +268,8 @@ class UmaCalculator {
      * @param a 加速度
      * @param isFinal 是否是终盘
      */
-    private fun calculateAcceleration(v0: Double, v1: Double, a: Double, isFinal: Boolean = false): StageResult {
-        val res = StageResult()
+    private fun calculateAcceleration(v0: Double, v1: Double, a: Double, isFinal: Boolean = false): PhaseResult {
+        val res = PhaseResult()
         val time = abs((v1 - v0) / a)
 
         res.time = time
@@ -316,8 +316,8 @@ class UmaCalculator {
      * @param d 距离
      * @param isFinal 是否是终盘
      */
-    private fun calculateCruise(v: Double, d: Double, isFinal: Boolean = false): StageResult {
-        val res = StageResult()
+    private fun calculateCruise(v: Double, d: Double, isFinal: Boolean = false): PhaseResult {
+        val res = PhaseResult()
         res.time = d / v
         res.distance = d
         if (isFinal) {
@@ -358,8 +358,8 @@ class UmaCalculator {
      * 失速了
      * @param v 速度
      */
-    private fun muuRii(v: Double): StageResult {
-        val res = StageResult()
+    private fun muuRii(v: Double): PhaseResult {
+        val res = PhaseResult()
         val d = distance - totalDistance
         res.distance = d
         res.hp = 0.0
