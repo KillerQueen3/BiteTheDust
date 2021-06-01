@@ -46,7 +46,7 @@ class UmaCalculator {
     /**
      * 计算实际属性
      */
-    fun calculateStats() {
+    private fun calculateStats() {
         aSpeed = speed * happy + groundSpeed
         aStamina = stamina * happy
         aPower = power * happy + groundPower
@@ -92,7 +92,7 @@ class UmaCalculator {
     private val tactAcceleration2 = mapOf(1 to 1.0, 2 to 1.0, 3 to 1.0, 4 to 1.0)
 
     /**
-     * 跑法中盘加速度补正表
+     * 跑法终盘加速度补正表
      */
     private val tactAcceleration3 = mapOf(1 to 0.996, 2 to 0.996, 3 to 1.0, 4 to 0.997)
 
@@ -181,7 +181,7 @@ class UmaCalculator {
      */
     var af = 0.0
 
-    fun calculateVA() {
+    private fun calculateVA() {
         v0 = 20 - (distance - 2000) / 1000.0
         v1 = (tactSpeed1[tact]!! + (aWisdom * log10(aWisdom / 10.0)) / 550000.0 - 0.00325) * v0
         v2 = (tactSpeed2[tact]!! + (aWisdom * log10(aWisdom / 10.0)) / 550000.0 - 0.00325) * v0
@@ -205,20 +205,6 @@ class UmaCalculator {
         af = 0.0006 * sqrt(500 * aPower) * tactAcceleration3[tact]!! * groundAcceleration * distanceAcceleration
     }
 
-    /**
-     * 序盘长度
-     */
-    fun getDistance1() = distance / 6.0
-
-    /**
-     * 中盘长度
-     */
-    fun getDistance2() = distance / 2.0
-
-    /**
-     * 终盘长度
-     */
-    fun getDistance3() = distance / 3.0
 
     /**
      * 巡航时hp消耗
@@ -396,13 +382,13 @@ class UmaCalculator {
         val sa0 = calculateAcceleration(0.85 * v0, v1, a1)
         resultMap["phase0-a"] = sa0
 
-        val sc0 = calculateCruise(v1, getDistance1() - totalDistance)
+        val sc0 = calculateCruise(v1, distance / 6 - totalDistance)
         resultMap["phase0-c"] = sc0
 
         val sa1 = calculateAcceleration(v1, v2, a2)
         resultMap["phase1-a"] = sa1
 
-        val sc1 = calculateCruise(v2, getDistance1() + getDistance2() - totalDistance)
+        val sc1 = calculateCruise(v2, distance * 2 / 3 - totalDistance)
         resultMap["phase1-c"] = sc1
 
         df = min(
