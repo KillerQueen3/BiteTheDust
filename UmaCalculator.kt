@@ -2,6 +2,9 @@ package plugin.koms.calculator
 
 import kotlin.math.*
 
+/**
+ * 马娘计算器，输入各项参数后使用 [calculate] 方法计算结果。
+ */
 class UmaCalculator {
     // 面板属性
     var speed = 0
@@ -121,15 +124,16 @@ class UmaCalculator {
      */
     var skillHp = 0.0
 
+
     /**
      * 终盘hp消耗系数
      */
-    fun getFinalHp() = 1 + 200 / sqrt(600.0 * aGuts)
+    var finalHp = 0.0
 
     /**
      * HP
      */
-    fun getHp() = (distance + 0.8 * aStamina * tactHp[tact]!!) * (1 + skillHp / 10000.0)
+    var hp = 0.0
 
     /**
      * 基准速度，只和距离有关
@@ -181,6 +185,9 @@ class UmaCalculator {
      */
     var af = 0.0
 
+    /**
+     * 计算各项参数。
+     */
     private fun calculateVA() {
         v0 = 20 - (distance - 2000) / 1000.0
         v1 = (tactSpeed1[tact]!! + (aWisdom * log10(aWisdom / 10.0)) / 550000.0 - 0.00325) * v0
@@ -203,38 +210,53 @@ class UmaCalculator {
             -0.8
         }
         af = 0.0006 * sqrt(500 * aPower) * tactAcceleration3[tact]!! * groundAcceleration * distanceAcceleration
+
+        finalHp = 1 + 200 / sqrt(600.0 * aGuts)
+        hp = (distance + 0.8 * aStamina * tactHp[tact]!!) * (1 + skillHp / 10000.0)
+        minSpeed = v0 * 0.85 + sqrt(200 * aGuts) * 0.001
     }
 
 
     /**
      * 巡航时hp消耗
-     * @param coefficient 额外系数，终盘时为 [getFinalHp]
+     * @param coefficient 额外系数，终盘时为 [finalHp]
      * @param v 速度
      * @param t 时间
      */
-    fun getHpConsumeCruise(v: Double, t: Double, coefficient: Double = 1.0) =
+    private fun getHpConsumeCruise(v: Double, t: Double, coefficient: Double = 1.0) =
         20.0 * groundHp * coefficient * (((v - v0 + 12).pow(2.0)) / 144) * t
 
     /**
      * 加速时hp消耗
-     * @param coefficient 额外系数，终盘时为 [getFinalHp]
+     * @param coefficient 额外系数，终盘时为 [finalHp]
      * @param v 初速度
      * @param a 加速度
      * @param t 时间
      */
-    fun getHpConsumeAcceleration(v: Double, t: Double, a: Double, coefficient: Double = 1.0) =
+    private fun getHpConsumeAcceleration(v: Double, t: Double, a: Double, coefficient: Double = 1.0) =
         20.0 * groundHp * coefficient * (((a * t + v - v0 + 12).pow(3) - (v - v0 + 12).pow(3)) / (432 * a))
 
 
     /**
      * 最小目标速度
      */
-    fun getMinSpeed() = v0 * 0.85 + sqrt(200 * aGuts) * 0.001
+    var minSpeed = 0.0
 
     // 下面是计算部分
 
+    /**
+     * 总时间
+     */
     var totalTime = 0.0
+
+    /**
+     * 总距离
+     */
     var totalDistance = 0.0
+
+    /**
+     * 总hp消耗
+     */
     var totalHpConsume = 0.0
 
     var resultMap = mutableMapOf<String, StageResult>()
@@ -246,7 +268,7 @@ class UmaCalculator {
      * @param a 加速度
      * @param isFinal 是否是终盘
      */
-    fun calculateAcceleration(v0: Double, v1: Double, a: Double, isFinal: Boolean = false): StageResult {
+    private fun calculateAcceleration(v0: Double, v1: Double, a: Double, isFinal: Boolean = false): StageResult {
         val res = StageResult()
         val time = abs((v1 - v0) / a)
 
@@ -255,16 +277,16 @@ class UmaCalculator {
         res.distance = distance
 
         if (isFinal) {
-            res.hp = getHpConsumeAcceleration(v0, time, a, getFinalHp())
+            res.hp = getHpConsumeAcceleration(v0, time, a, finalHp)
         } else {
             res.hp = getHpConsumeAcceleration(v0, time, a)
         }
 
-        if (totalHpConsume + res.hp >= getHp()) {
-            val reHp = getHp() - totalHpConsume
+        if (totalHpConsume + res.hp >= hp) {
+            val reHp = hp - totalHpConsume
             var mt = 0.0
-            for (i in 0..(time.toInt() + 10) * 100) {
-                if (getHpConsumeAcceleration(v0, a, i / 100.0, getFinalHp()) >= reHp) {
+            for (i in 0..(time.toInt() + 10) * 100) { // 计算失速时间（精度0.01）
+                if (getHpConsumeAcceleration(v0, i / 100.0, a, finalHp) >= reHp) {
                     mt = i / 100.0
                     break
                 }
@@ -277,7 +299,7 @@ class UmaCalculator {
 
             totalTime += mt
             totalDistance += md
-            totalHpConsume = getHp()
+            totalHpConsume = hp
 
             throw NoHpException("${totalTime}时失速。", res, v0 + a * mt)
         }
@@ -294,21 +316,21 @@ class UmaCalculator {
      * @param d 距离
      * @param isFinal 是否是终盘
      */
-    fun calculateCruise(v: Double, d: Double, isFinal: Boolean = false): StageResult {
+    private fun calculateCruise(v: Double, d: Double, isFinal: Boolean = false): StageResult {
         val res = StageResult()
         res.time = d / v
         res.distance = d
         if (isFinal) {
-            res.hp = getHpConsumeCruise(v, d / v, getFinalHp())
+            res.hp = getHpConsumeCruise(v, d / v, finalHp)
         } else {
             res.hp = getHpConsumeCruise(v, d / v)
         }
 
-        if (totalHpConsume + res.hp >= getHp()) {
-            val reHp = getHp() - totalHpConsume
+        if (totalHpConsume + res.hp >= hp) {
+            val reHp = hp - totalHpConsume
             var mt = 0.0
-            for (i in 0..(res.time.toInt() + 10) * 100) {
-                if (getHpConsumeCruise(v, i / 100.0, getFinalHp()) >= reHp) {
+            for (i in 0..(res.time.toInt() + 10) * 100) { // 计算失速时间（精度0.01）
+                if (getHpConsumeCruise(v, i / 100.0, finalHp) >= reHp) {
 
                     mt = i / 100.0
                     break
@@ -321,7 +343,7 @@ class UmaCalculator {
 
             totalTime += mt
             totalDistance += mt * v
-            totalHpConsume = getHp()
+            totalHpConsume = hp
 
             throw NoHpException("${totalTime}时失速。", res, v)
         }
@@ -336,17 +358,17 @@ class UmaCalculator {
      * 失速了
      * @param v 速度
      */
-    fun muuuuuuuRiiiiiii(v: Double): StageResult {
+    private fun muuRii(v: Double): StageResult {
         val res = StageResult()
         val d = distance - totalDistance
         res.distance = d
         res.hp = 0.0
-        val time = (v - getMinSpeed()) / 1.2
+        val time = (v - minSpeed) / 1.2
 
         val ad = v * time - 0.6 * time * time
 
         if (ad < d) {
-            res.time = time + (d - ad) / getMinSpeed()
+            res.time = time + (d - ad) / minSpeed
         } else {
             val at = (v - sqrt(v * v - 2.4 * d)) / 1.2
             res.time = at
@@ -375,7 +397,6 @@ class UmaCalculator {
         calculateStats()
         calculateVA()
 
-        val hp = getHp()
         val start = calculateAcceleration(3.0, 0.85 * v0, a0)
         resultMap["start"] = start
 
@@ -393,8 +414,8 @@ class UmaCalculator {
 
         df = min(
             distance / 3.0,
-            (hp - totalHpConsume - (distance / 3 - 60) * 20 * getFinalHp() * groundHp * (v3 - v0 + 12).pow(2) / 144 / v3) /
-                    (20 * getFinalHp() * groundHp * ((v4 - v0 + 12).pow(2) / 144 / v4 - (v3 - v0 + 12).pow(2) / 144 / v3)) + 60
+            (hp - totalHpConsume - (distance / 3 - 60) * 20 * finalHp * groundHp * (v3 - v0 + 12).pow(2) / 144 / v3) /
+                    (20 * finalHp * groundHp * ((v4 - v0 + 12).pow(2) / 144 / v4 - (v3 - v0 + 12).pow(2) / 144 / v3)) + 60
         )
 
         if (df <= 0) {
@@ -424,7 +445,7 @@ class UmaCalculator {
             resultMap[cur] = sc3
         } catch (e: NoHpException) {
             resultMap[cur] = e.result
-            val mm = muuuuuuuRiiiiiii(e.v)
+            val mm = muuRii(e.v)
             resultMap["MuuRii"] = mm
         }
     }
