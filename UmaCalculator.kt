@@ -262,6 +262,21 @@ class UmaCalculator {
     var resultMap = mutableMapOf<String, PhaseResult>()
 
     /**
+     * 二分法计算加速时耗尽hp时间。
+     */
+    private fun getMuriTime(v0: Double, startTime: Double, maxTime: Double, a: Double, reHp: Double): Double {
+        val center = (maxTime + startTime) / 2.0
+        val chp = reHp - getHpConsumeAcceleration(v0, center, a, finalHp)
+        if (abs(chp) < 0.000000001) return center
+
+        return if (chp > 0) {
+            getMuriTime(v0, center, maxTime, a, reHp)
+        } else {
+            getMuriTime(v0, startTime, center, a, reHp)
+        }
+    }
+
+    /**
      * 计算加速过程
      * @param v0 初速
      * @param v1 目标速度
@@ -284,13 +299,7 @@ class UmaCalculator {
 
         if (totalHpConsume + res.hp >= hp) {
             val reHp = hp - totalHpConsume
-            var mt = 0.0
-            for (i in 0..(time.toInt() + 10) * 100) { // 计算失速时间（精度0.01）
-                if (getHpConsumeAcceleration(v0, i / 100.0, a, finalHp) >= reHp) {
-                    mt = i / 100.0
-                    break
-                }
-            }
+            val mt = getMuriTime(v0, 0.0, time + 1, a, reHp)
 
             val md = v0 * mt + 0.5 * a * mt * mt
             res.time = mt
@@ -328,14 +337,7 @@ class UmaCalculator {
 
         if (totalHpConsume + res.hp >= hp) {
             val reHp = hp - totalHpConsume
-            var mt = 0.0
-            for (i in 0..(res.time.toInt() + 10) * 100) { // 计算失速时间（精度0.01）
-                if (getHpConsumeCruise(v, i / 100.0, finalHp) >= reHp) {
-
-                    mt = i / 100.0
-                    break
-                }
-            }
+            val mt = reHp / (20.0 * groundHp * finalHp * (((v - v0 + 12).pow(2.0)) / 144))
 
             res.time = mt
             res.distance = mt * v
@@ -424,20 +426,22 @@ class UmaCalculator {
 
         var cur = ""
         try {
-            if (df + totalDistance < distance) {
+            var cv = v2
+            if (df < distance / 3.0) {
                 cur = "phase2-a"
                 val sa2 = calculateAcceleration(v2, v3, a3, true)
+                cv = v3
                 resultMap[cur] = sa2
             }
 
-            if (df + totalDistance < distance) {
+            if (df + totalDistance < distance && df < distance / 3.0) {
                 cur = "phase2,3-c"
                 val sc23 = calculateCruise(v3, distance - df - totalDistance, true)
                 resultMap[cur] = sc23
             }
 
             cur = "last-a"
-            val sa3 = calculateAcceleration(v3, v4, af, true)
+            val sa3 = calculateAcceleration(cv, v4, af, true)
             resultMap[cur] = sa3
 
             cur = "last-c"
